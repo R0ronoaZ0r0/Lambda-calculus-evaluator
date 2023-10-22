@@ -1,0 +1,176 @@
+options {
+  FORCE_LA_CHECK = true;
+  LOOKAHEAD = 2;
+  MULTI=true; // an option for JJTree
+              // set to build a multi mode tree
+              // (with different types of nodes)
+}
+
+PARSER_BEGIN(Prog3)
+import java.util.Scanner;
+class Prog3 {
+  public static void main(String args[]) {
+    System.out.println();
+    System.out.println(">>> Lambda Expression Evaluator <<<");
+    System.out.println("Enter an Lambda Expression:");
+    Prog3 prog = new Prog3(System.in);
+    try {
+      ASTStart start = prog.Start();
+      SimpleNode node = (SimpleNode) start.jjtGetChild(0);
+      System.out.println();
+      System.out.println("The abstract syntax tree:");
+      node.dump("");
+      System.out.println();
+      System.out.println("The Lambda Expression in the concrete syntax:");
+      System.out.println(node.astToString());
+      System.out.println();
+      System.out.println("The abstract syntax tree with free variables:");
+      node.dumpFV("");
+	  
+	  System.out.println(">>> Lambda Expression Evaluator <<<");
+      System.out.println("Enter an applied Lambda Expression:");
+	  
+	  prog.ReInit(System.in);
+	  ASTStart start1 = prog.Start();
+	  System.out.println();
+      System.out.println("The abstract syntax tree:");
+	  
+	  SimpleNode node1 = (SimpleNode) start1.jjtGetChild(0);
+	  node1.dump("");
+	  
+	  System.out.println();
+      System.out.println("Enter the variable to be substituted:");
+	  Scanner sc = new Scanner(System.in);
+	  String sub = sc.nextLine();
+	  
+	  System.out.println();
+      System.out.println("Enter the substituting applied lambda expression:");
+	  prog.ReInit(System.in);
+	  
+	  ASTStart start2 = prog.Start();
+	  System.out.println();
+      System.out.println("The abstract syntax tree:");
+	  
+	  SimpleNode node2 = (SimpleNode) start2.jjtGetChild(0);
+	  node2.dump("");
+	  
+	  System.out.println();
+      System.out.println("The Substitution result:");
+	  SimpleNode res = node1.cloneTree();
+      res = res.substitute(sub, node2);
+      res.dump("");
+      System.out.println();
+	  
+	  System.out.println("Enter an applied Lambda expression:");
+	  prog.ReInit(System.in);
+	  ASTStart start3 = prog.Start();
+	  System.out.println();
+      SimpleNode node3 = (SimpleNode) start3.jjtGetChild(0);
+	  SimpleNode normal = node3.cloneTree();
+      normal = normal.normalOrder();
+	  
+	  System.out.println("The normal order evaluation result:");
+	  normal.dump("");
+	  
+    } catch (Exception e) {
+      System.out.println("Oops.");
+      System.out.println(e.getMessage());
+      e.printStackTrace();
+    }
+  }
+}
+
+PARSER_END(Prog3)
+
+
+SKIP :
+{
+  " "
+| "\t"
+| "\n"
+| "\r"
+| <"//" (~["\n","\r"])* ("\n"|"\r"|"\r\n")>
+| <"/*" (~["*"])* "*" (~["/"] (~["*"])* "*")* "/">
+}
+
+TOKEN : /* LITERALS */
+{
+  < INTEGER_LITERAL:
+        <DECIMAL_LITERAL> (["l"])?
+  >
+
+|
+  < #DECIMAL_LITERAL: ["1"-"9"] (["0"-"9"])* >
+
+}
+
+TOKEN : /*LAMBDA*/
+{
+  <
+  LAMBDA : "L"
+  >
+}
+
+TOKEN : /* IDENTIFIERS */
+{
+
+
+  < IDENTIFIER: <LETTER> (<LETTER>|<DIGIT>)* >
+|
+  < #LETTER: ["_","a"-"z"] >
+|
+  < #DIGIT: ["0"-"9"] >
+}
+
+ASTStart Start(): {}
+{
+  Expression()
+  { return jjtThis; }
+}
+
+
+void Expression() #void : {}
+{
+  (
+    MyID() | "+" #add | "-" #sub | "*" #mult | "/" #div
+    |
+    Integer() 
+    |
+    "("
+	(
+	  "L" MyID() Body() #lamb(2)
+	)
+    ")"
+    |
+    "(" Expression() (Expression() #appl(2))* ")"
+  )  
+   
+}
+
+void Body() #void : {} 
+{
+  (
+    "." Expression() (Expression() #appl(2))*
+    |
+    MyID() Body() #lamb(2)
+  )
+}
+
+void MyID() :
+{
+  Token t;
+}
+{
+  t=<IDENTIFIER>
+  {
+    jjtThis.setName(t.image);
+  }
+}
+
+void Integer() : { Token t; }
+{
+  t = <INTEGER_LITERAL>
+  {
+	jjtThis.setValue(t.image);
+  }
+}
